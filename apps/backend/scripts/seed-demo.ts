@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto'
 import { addDays, planInputSchema, todayISO, weekStart, type PlanMealInput } from '@menu/shared'
 import { db } from '../src/db/index.js'
 import { migrate } from '../src/db/migrate.js'
-import { freezerItems, mealPlans, recipeIngredients, recipes, shoppingItems, staples } from '../src/db/schema.js'
+import { familyMembers, freezerItems, mealPlans, prepTasks, recipeIngredients, recipes, shoppingItems, staples } from '../src/db/schema.js'
 import { savePlan } from '../src/services/plans.js'
 
 if (!process.env.DATABASE_URL) {
@@ -31,7 +31,12 @@ function recipe(title: string, servings: number, ingredients: [string, number | 
 }
 
 const lemonChicken = recipe('Lemon-herb chicken', 5, [['Chicken thighs', 2.5, 'lb'], ['Lemons', 2, ''], ['Olive oil', 3, 'tbsp'], ['Garlic', 4, 'cloves'], ['Rice', 2, 'cup']], { cookMin: 40 })
-const fajitas = recipe('Chicken fajitas', 5, [['Chicken breast', 2, 'lb'], ['Bell peppers', 3, ''], ['Yellow onion', 1, ''], ['Flour tortillas', 1, 'package'], ['Sour cream', 8, 'oz'], ['Olive oil', 2, 'tbsp']], { cookMin: 25, tags: 'mexican,quick' })
+const fajitas = recipe('Chicken fajitas', 5, [['Chicken breast', 2, 'lb'], ['Bell peppers', 3, ''], ['Yellow onion', 1, ''], ['Flour tortillas', 1, 'package'], ['Sour cream', 8, 'oz'], ['Olive oil', 2, 'tbsp']], {
+  prepMin: 10, cookMin: 25, tags: 'mexican,quick,sheet-pan', rating: 5,
+  description: 'Sheet-pan fajitas — the kids build their own.',
+  instructions: '1. Heat the oven to 425°F.\n2. Slice the chicken, peppers and onion; toss with oil and fajita seasoning.\n3. Roast on a sheet pan for 20–25 minutes, stirring once.\n4. Serve with warm tortillas and sour cream.',
+  prepAheadNotes: 'Slice the peppers and onion up to two days ahead.',
+})
 const eggRoll = recipe('Turkey egg roll in a bowl', 5, [['Ground turkey', 1.5, 'lb'], ['Coleslaw mix', 2, 'bag'], ['Soy sauce', 0.25, 'cup'], ['Green onions', 1, 'bunch'], ['Rice', 2, 'cup']], { cookMin: 20 })
 const stirFry = recipe('Shrimp stir-fry or baked salmon', 5, [['Frozen shrimp', 1, 'lb'], ['Broccoli', 2, 'head'], ['Soy sauce', 2, 'tbsp'], ['Rice', 1.5, 'cup']], { cookMin: 25 })
 
@@ -70,6 +75,30 @@ for (const [name, amountText, offset, isBackup] of freezer) {
   db.insert(freezerItems).values({ id: randomUUID(), name, amountText, isBackup, planMealId: mealIdByDate.get(addDays(today, offset)) ?? null, addedAt: now }).run()
 }
 
+const family: [string, boolean, string, string, string][] = [
+  ['Mom', false, 'salmon, anything spicy', '', ''],
+  ['Dad', false, 'tacos, stir-fry', 'olives', ''],
+  ['Ava', true, 'noodles, tacos', 'mushrooms', ''],
+  ['Leo', true, 'chicken, rice', 'spicy food', 'tree nuts'],
+  ['June', true, 'eggs, fruit', 'onions', ''],
+]
+family.forEach(([name, isKid, likes, dislikes, allergies], sort) => {
+  db.insert(familyMembers).values({ id: randomUUID(), name, isKid, likes, dislikes, allergies, sort, createdAt: now }).run()
+})
+
+const nextWeek = weekStart(addDays(today, 1))
+const prepPlan = db.select().from(mealPlans).all().find(p => p.weekStart === nextWeek)
+if (prepPlan) {
+  const prep: [string, string, number][] = [
+    [addDays(nextWeek, -1), 'Slice peppers and onions for fajitas', 15],
+    [addDays(nextWeek, -1), 'Cook a big batch of rice', 25],
+    [addDays(nextWeek, 2), 'Shred cabbage for egg roll bowls', 10],
+  ]
+  prep.forEach(([date, title, minutes], sort) => {
+    db.insert(prepTasks).values({ id: randomUUID(), planId: prepPlan.id, date, title, minutes, sort }).run()
+  })
+}
+
 for (const name of ['Rice', 'Protein shakes']) {
   db.insert(staples).values({ id: randomUUID(), name, inEveryOrder: true, createdAt: now }).run()
 }
@@ -77,4 +106,4 @@ for (const name of ['Gallon freezer bags', 'Olive oil, preferably the terra dely
   db.insert(shoppingItems).values({ id: randomUUID(), name, source: 'manual', createdAt: now }).run()
 }
 
-console.log(`Seeded ${meals.length} meals across ${byWeek.size} week(s), 4 recipes, ${freezer.length} freezer items and 2 staples.`)
+console.log(`Seeded ${meals.length} meals across ${byWeek.size} week(s), 4 recipes, ${family.length} family members, ${freezer.length} freezer items, prep tasks and 2 staples.`)

@@ -6,11 +6,15 @@ import { trpc } from '../lib/trpc.js'
 import { errorMessage } from '../lib/errors.js'
 import { DOW_NAMES } from '@menu/shared'
 import { Icon } from '../components/Icon.js'
+import { BottomSheet } from '../components/BottomSheet.js'
+import { Link } from 'react-router'
+import type { RouterOutputs } from '../lib/types.js'
 
 export function SettingsPage() {
   return (
     <AppShell title="Settings">
       <div className="settings-grid">
+        <FamilySection />
         <StaplesSection />
         <CadenceSection />
         <AccountSection />
@@ -223,5 +227,88 @@ function CadenceSection() {
       {field('listDow', 'Send the list on', 'When the grocery list goes out.')}
       {field('pickupDow', 'Pick up on', 'When the groceries arrive.')}
     </section>
+  )
+}
+
+type Member = RouterOutputs['family']['list'][number]
+
+function FamilySection() {
+  const { data: members = [] } = trpc.family.list.useQuery()
+  const [editing, setEditing] = useState<Member | 'new' | null>(null)
+  return (
+    <section className="card section">
+      <h2 className="section-title">Family</h2>
+      <p className="muted">Everyone the plan feeds — kids too. Likes, dislikes and allergies are what plan-week works around, and everyone here can rate dinners on the Feedback tab.</p>
+      {members.length > 0 && (
+        <ul className="rows">
+          {members.map(m => (
+            <li key={m.id}>
+              <button className="row row-button" onClick={() => setEditing(m)}>
+                <div className="row-main">
+                  <div className="row-title">{m.name}{m.isKid ? <span className="tag"> · Kid</span> : null}</div>
+                  {(m.dislikes || m.allergies) && (
+                    <div className="muted small">{[m.allergies && `Allergic: ${m.allergies}`, m.dislikes && `Dislikes: ${m.dislikes}`].filter(Boolean).join(' · ')}</div>
+                  )}
+                </div>
+                <Icon name="chevron" size={18} className="day-chevron" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button className="btn" onClick={() => setEditing('new')}><Icon name="plus" size={18} /> Add family member</button>
+      <p className="muted small">Kitchen tablet? Open the <Link to="/kiosk">full-screen display</Link>.</p>
+      <BottomSheet open={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Add family member' : editing?.name ?? ''}>
+        {editing && <MemberForm key={editing === 'new' ? 'new' : editing.id} member={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />}
+      </BottomSheet>
+    </section>
+  )
+}
+
+function MemberForm({ member, onDone }: { member?: Member; onDone: () => void }) {
+  const utils = trpc.useUtils()
+  const refresh = () => utils.family.list.invalidate()
+  const create = trpc.family.create.useMutation({ onSuccess: refresh })
+  const update = trpc.family.update.useMutation({ onSuccess: refresh })
+  const del = trpc.family.delete.useMutation({ onSuccess: refresh })
+  const [form, setForm] = useState({
+    name: member?.name ?? '', isKid: member?.isKid ?? false, likes: member?.likes ?? '',
+    dislikes: member?.dislikes ?? '', allergies: member?.allergies ?? '', notes: member?.notes ?? '',
+  })
+  const [error, setError] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState(false)
+  const text = (k: 'name' | 'likes' | 'dislikes' | 'allergies' | 'notes', label: string, placeholder: string) => (
+    <label className="field">
+      <span className="field-label">{label}</span>
+      <input className="input" value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} placeholder={placeholder} required={k === 'name'} />
+    </label>
+  )
+  return (
+    <form className="stack" onSubmit={async e => {
+      e.preventDefault()
+      setError(null)
+      try {
+        if (member) await update.mutateAsync({ id: member.id, ...form })
+        else await create.mutateAsync(form)
+        onDone()
+      } catch (err) { setError(errorMessage(err)) }
+    }}>
+      {text('name', 'Name', 'Ava')}
+      <label className="check">
+        <input type="checkbox" checked={form.isKid} onChange={e => setForm(f => ({ ...f, isKid: e.target.checked }))} />
+        <span>Kid</span>
+      </label>
+      {text('likes', 'Likes', 'tacos, noodles, anything with ranch')}
+      {text('dislikes', 'Dislikes', 'mushrooms, spicy food')}
+      {text('allergies', 'Allergies', 'tree nuts')}
+      {text('notes', 'Notes', 'Eats small portions')}
+      {error && <div className="form-error" role="alert">{error}</div>}
+      <div className="btn-row">
+        <button className="btn btn-primary" type="submit" disabled={create.isPending || update.isPending}>Save</button>
+        {member && (confirm
+          ? <button type="button" className="btn btn-danger" onClick={async () => { await del.mutateAsync({ id: member.id }); onDone() }}>Really remove?</button>
+          : <button type="button" className="btn btn-ghost" onClick={() => setConfirm(true)}>Remove</button>)}
+      </div>
+    </form>
   )
 }

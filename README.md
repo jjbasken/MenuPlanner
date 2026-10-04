@@ -2,12 +2,17 @@
 
 A self-hosted family meal planner, built to be used mostly from a phone. Everyone in the household gets their own login and shares one plan.
 
-> **Status:** early development. The **Tonight** home screen, the next-order list, the freezer, staples and accounts work. Creating and editing weekly plans and recipes in the app comes in a follow-up release (until then, plans come from the demo seed), as do shopping-list review and the GroceryList push. This README is updated with each release.
+> **Status:** early development. Planning works end to end in the app: recipes, the weekly plan and prep schedule, the Tonight screen, family feedback, and the kitchen display. Still to come: building the shopping list from the plan and pushing it to GroceryList, and AI planning through Claude Code / Codex. This README is updated with each release.
 
 <p>
   <img src="docs/screenshots/tonight-phone.png" alt="Tonight screen on a phone" width="260">
   &nbsp;
   <img src="docs/screenshots/tonight-desktop.png" alt="Tonight screen on a desktop" width="540">
+</p>
+<p>
+  <img src="docs/screenshots/plan-phone.png" alt="Week plan and prep schedule on a phone" width="260">
+  &nbsp;
+  <img src="docs/screenshots/feedback-phone.png" alt="Family feedback on a phone" width="260">
 </p>
 
 <sub>Screenshots use the demo data from <code>bun run seed:demo</code>.</sub>
@@ -36,8 +41,54 @@ Modeled on a kitchen dashboard. On a phone the sections stack in one column; on 
   - Taps such as Have it, Used, Push back and adding an item update the screen immediately, and are undone if the server rejects them.
   - "Today" follows the phone's calendar and rolls over at midnight.
 
+### Plan
+
+- **Week view:**
+  - Shows Monday through Sunday, with ‹ › to move between weeks. The week is labeled "This week" or "Next week" when it is one.
+  - Each day shows its meal, kind pill, cook-night number, total recipe time, side note and any linked freezer items.
+  - A plan is a **Draft** until you **Mark final**.
+- **Editing a day:** tap the day to open a sheet where you can:
+  - choose **Cook night**, **Leftovers** or **Flexible**
+  - pick a recipe or just type a title ("Frittata, omelets, tuna salad, or leftovers")
+  - for leftovers, choose which cook night they come from; the title is filled in as "Leftover …"
+  - add a side note
+  - tick the freezer items to thaw for it
+  - **Clear day** removes the meal.
+
+  Editing a day updates the existing meal, so its ratings and freezer links are kept.
+- **Prep schedule:**
+  - Batch-prep tasks for the week, including the Sunday before it ("Slice peppers and onions · 15 min").
+  - Tasks are grouped by day with checkboxes, and the total minutes left is shown.
+  - Push back moves unfinished tasks along with the meals.
+
+### Recipes (Plan → Recipes)
+
+- **Library:**
+  - Search by title, description or tag.
+  - Filter with **Kid-friendly** and tag chips.
+  - Each card shows total time, servings, ingredient count, rating and tags.
+- **Recipe page:**
+  - A servings stepper scales every ingredient amount (shown as kitchen fractions).
+  - Also shows prep-ahead notes, instructions, and the source link.
+- **Editor:**
+  - On a phone, each ingredient row has the name on its own line, with amount, unit and note below; on wider screens it's one line.
+  - Amounts can be typed as `2`, `1.5`, `1/2`, `1 1/2` or `1½`.
+  - Deleting a recipe keeps any planned meals that used it, by title.
+
+### Feedback
+
+- **Ratings:** each meal from the last ten days gets a row per family member with big 👍 😐 👎 buttons that kids can use. Tap the same button again to clear it.
+- **Prerequisite:** family members are set up in Settings.
+
+### Kitchen display
+
+- **Full screen** (`/kiosk`, linked from the header on tablet and desktop, and from Settings): the Tonight screen without navigation, with larger type.
+  - It refreshes every minute and has a Full screen toggle wherever the browser supports one.
+  - On an iPhone, adding the app to the home screen already gives a full-screen view.
+
 ### Settings
 
+- **Family:** everyone the plan feeds, kids included. For each person you can record whether they're a kid, plus likes, dislikes, allergies and notes.
 - **Staples:** add or remove staples, and choose whether each one goes into every order.
 - **Shopping rhythm:** the days you draft the plan, send the list, and pick up groceries.
 - **Your account:** display name and password.
@@ -81,8 +132,8 @@ apps/
       index.ts        Entry point: config checks, migrations, server
       app.ts          HTTP routes (/api/trpc/*, /health)
       router.ts       tRPC router
-      routers/        auth, users, tonight, plans, shopping, freezer, staples, settings
-      services/       plans.ts (save a week, push back, move), order.ts (next-order rules)
+      routers/        auth, users, tonight, plans, recipes, family, feedback, shopping, freezer, staples, settings
+      services/       plans.ts (save/edit a week, push back, move), recipes.ts, order.ts (next-order rules)
       db/             schema.ts (Drizzle), migrate.ts (idempotent SQL run at boot)
       lib/            jwt, rate limiting, input limits, secret helpers
     scripts/          seed-demo.ts
@@ -90,8 +141,8 @@ apps/
     Dockerfile
   frontend/           React SPA
     src/
-      routes/         TonightPage, SettingsPage, LoginPage, SetupPage
-      components/     AppShell (header + tab bar), BottomSheet, MealPills, Icon, ProtectedRoute
+      routes/         Tonight, Kiosk, Plan, Recipes, Recipe, RecipeEdit, Feedback, Settings, Login, Setup
+      components/     AppShell (header + tab bar), BottomSheet, MealPills, PlanTabs, Icon, ProtectedRoute
       hooks/ lib/     auth, tRPC client, session storage
       index.css       Design tokens + phone-first styles
     public/           manifest.json, sw.js, icons
@@ -117,13 +168,11 @@ docker-compose.yml
   - Ingredient names are matched ignoring case, spacing and simple plurals, so "Yellow onions" and "yellow onion" are the same item.
   - Volumes (tsp/tbsp/cup/fl oz/pint/quart/gallon/ml/l) and masses (oz/lb/g/kg) are converted to a common base and summed. The total is shown in a readable unit: imperial if any input was imperial, otherwise metric.
   - Units that can't be converted (cans, cloves, bunches…) are summed per unit and listed side by side, e.g. "8 oz + 2 cans".
-  - Amounts use kitchen fractions (1½, ⅓). An amount that doesn't fit a measuring cup, like ⅜ cup, is shown in spoons instead: 6 tbsp.
+  - Amounts use kitchen fractions (1½, ⅓). An amount that doesn't fit a measuring cup, like ⅜ cup, is shown in spoons instead: 6 tbsp. `parseQty()` reads typed amounts such as "1 1/2" or "½".
   - Each combined item records which meals it came from.
 - **Dates:** plans use plain `YYYY-MM-DD` dates in the household's local calendar, and weeks run Monday to Sunday. "Push back" moves tonight's meal and every later one by N days.
 - **Plan helpers:** cook nights are numbered in date order. A freezer item linked to a meal produces a "Thaw tonight" reminder the evening before.
 - **Schemas:** the zod input schemas for recipes and weekly plans. The API and the agent CLI will both validate against these.
-
-The database schema also includes tables for recipes, family members and feedback, which have no screens yet.
 
 ## Running with Docker Compose
 
@@ -188,7 +237,7 @@ bun run dev:frontend
 | `bun run test` | `bun test` for `@menu/shared` and the backend (tRPC procedures run in-process against in-memory SQLite) |
 | `bun run typecheck` | `tsc --noEmit` in every workspace |
 | `bun run build` | Production frontend build into `apps/frontend/dist` |
-| `DATABASE_URL=./dev.sqlite bun run seed:demo` | Fills an **empty** database with a sample week (dated relative to today), recipes, freezer items, staples and a couple of order items, so you can try the Tonight screen. Refuses to run if any plan already exists |
+| `DATABASE_URL=./dev.sqlite bun run seed:demo` | Fills an **empty** database with a sample week (dated relative to today), recipes, a family of five, prep tasks, freezer items, staples and a couple of order items, so you can try the app. Refuses to run if any plan already exists |
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, the tests, the frontend build, and both Docker image builds on every pull request.
 

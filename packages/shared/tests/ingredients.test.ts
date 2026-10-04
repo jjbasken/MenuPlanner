@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { aggregateIngredients, formatQty, ingredientKey, normalizeUnit, scaleQty, singularize } from '../src/ingredients.js'
+import { aggregateIngredients, formatQty, ingredientKey, normalizeUnit, parseQty, scaleQty, singularize } from '../src/ingredients.js'
 
 const byName = (rows: ReturnType<typeof aggregateIngredients>, key: string) => rows.find(r => r.key === key)!
 
@@ -131,5 +131,21 @@ describe('formatting', () => {
     expect(scaleQty(2, 4, 6)).toBe(3)
     expect(scaleQty(2, 4, null)).toBe(2)
     expect(scaleQty(null, 4, 6)).toBeNull()
+  })
+})
+
+describe('parseQty', () => {
+  test('accepts what people type', () => {
+    expect(parseQty('2')).toBe(2)
+    expect(parseQty(' 1.5 ')).toBe(1.5)
+    expect(parseQty('1/2')).toBe(0.5)
+    expect(parseQty('1 1/2')).toBe(1.5)
+    expect(parseQty('1½')).toBe(1.5)
+    expect(parseQty('½')).toBe(0.5)
+    expect(parseQty('')).toBeNull()
+  })
+  test('rejects nonsense', () => {
+    expect(parseQty('a few')).toBeNaN()
+    expect(parseQty('1/0')).toBeNaN()
   })
 })
