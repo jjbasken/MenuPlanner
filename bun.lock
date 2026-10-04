@@ -5,7 +5,10 @@
     "": {
       "name": "menuplanner-monorepo",
       "devDependencies": {
+        "@menu/shared": "workspace:*",
         "@types/bun": "^1.3.11",
+        "typescript": "^5.5.0",
+        "zod": "^3.23.0",
       },
     },
     "apps/backend": {

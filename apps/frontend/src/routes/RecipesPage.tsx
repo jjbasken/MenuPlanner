@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { formatMinutes } from '@menu/shared'
 import { AppShell } from '../components/AppShell.js'
 import { Icon } from '../components/Icon.js'
 import { PlanTabs } from '../components/PlanTabs.js'
@@ -42,7 +43,7 @@ export function RecipesPage() {
               <div className="recipe-card-title">{r.title}</div>
               {r.description && <div className="muted recipe-card-desc">{r.description}</div>}
               <div className="recipe-card-meta">
-                {[(r.prepMin ?? 0) + (r.cookMin ?? 0) > 0 && `${(r.prepMin ?? 0) + (r.cookMin ?? 0)} min`, `serves ${r.servings}`, `${r.ingredientCount} ingredients`, r.rating && '★'.repeat(r.rating)].filter(Boolean).join(' · ')}
+                {[(r.prepMin ?? 0) + (r.cookMin ?? 0) > 0 && formatMinutes((r.prepMin ?? 0) + (r.cookMin ?? 0)), `serves ${r.servings}`, `${r.ingredientCount} ingredients`, r.rating && '★'.repeat(r.rating)].filter(Boolean).join(' · ')}
               </div>
               {(r.kidFriendly || r.tags.length > 0) && (
                 <div className="tag-row">

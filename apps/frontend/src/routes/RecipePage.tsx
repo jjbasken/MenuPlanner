@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { formatQuantity, scaleQty } from '@menu/shared'
+import { formatMinutes, formatQuantity, scaleQty } from '@menu/shared'
 import { AppShell } from '../components/AppShell.js'
 import { PlanTabs } from '../components/PlanTabs.js'
 import { trpc } from '../lib/trpc.js'
@@ -26,8 +26,8 @@ export function RecipePage() {
         <section className="card section">
           {r.description && <p className="recipe-desc">{r.description}</p>}
           <div className="recipe-facts">
-            {r.prepMin != null && <span><strong>{r.prepMin}</strong> min prep</span>}
-            {r.cookMin != null && <span><strong>{r.cookMin}</strong> min cook</span>}
+            {r.prepMin != null && <span><strong>{formatMinutes(r.prepMin)}</strong> prep</span>}
+            {r.cookMin != null && <span><strong>{formatMinutes(r.cookMin)}</strong> cook</span>}
             {r.rating && <span>{'★'.repeat(r.rating)}</span>}
             {r.kidFriendly && <span className="pill pill--leftovers">Kid-friendly</span>}
             {r.tags.map(t => <span key={t} className="pill pill--flexible">{t}</span>)}

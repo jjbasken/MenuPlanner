@@ -2,7 +2,12 @@
 
 A self-hosted family meal planner, built to be used mostly from a phone. Everyone in the household gets their own login and shares one plan.
 
-> **Status:** early development. Planning works end to end in the app: recipes, the weekly plan and prep schedule, the Tonight screen, family feedback, and the kitchen display. Still to come: AI planning through Claude Code / Codex. This README is updated with each release.
+It covers the whole weekly loop:
+- **Plan** the week (yourself, or let Claude Code or Codex draft it).
+- **Prep** ahead.
+- See **tonight's** dinner, thaw reminders and the freezer at a glance.
+- Rate meals as a **family**.
+- Turn the plan into a **shopping list** that's sent straight to [GroceryList](https://github.com/jjbasken/GroceryList).
 
 <p>
   <img src="docs/screenshots/tonight-phone.png" alt="Tonight screen on a phone" width="260">
@@ -100,6 +105,52 @@ Modeled on a kitchen dashboard. On a phone the sections stack in one column; on 
 - **Ratings:** each meal from the last ten days gets a row per family member with big 👍 😐 👎 buttons that kids can use. Tap the same button again to clear it.
 - **Prerequisite:** family members are set up in Settings.
 
+### AI planning with Claude Code or Codex
+
+MenuPlanner holds no AI API key. Instead, the planning work is done by a coding agent you already use, running in this repo, through a small REST API and the `mp` CLI. Claude Code and Codex get the same two skills, both defined in shared, agent-neutral docs under [`agent-workflows/`](agent-workflows):
+
+| Skill | Ask for | What it does |
+|-------|---------|--------------|
+| `plan-week` | "plan next week's dinners" | Reads the family's likes, dislikes and allergies, about four weeks of meals with everyone's 👍/👎, the recipe library, and the freezer. It drafts cook / leftovers / flexible nights and a prep schedule, creates any new recipes, and saves the week as a **draft**. It won't replace a plan the family has marked final unless you say so. |
+| `add-recipe` | "add this recipe: &lt;url&gt;" | Turns a URL, pasted text or a described dish into a structured recipe, with quantities and units, so shopping lists combine. It checks for duplicates first. |
+
+**Setup** (once):
+1. In the app, go to **Settings → API tokens** (admins only) and create a token. It's shown only once.
+2. In your clone of this repo, create `.mp.env`, which is gitignored:
+
+   ```
+   MENUPLANNER_URL=https://menu.example.com
+   MENUPLANNER_TOKEN=mp_…
+   ```
+
+3. Check the connection with `bun run mp whoami`.
+
+Then start the agent in the repo root and ask:
+- **Claude Code:** run `claude` and type `/plan-week`, or just say "plan next week". The skill lives in `.claude/skills/`.
+- **Codex:** run `codex` and say "plan next week". It reads `AGENTS.md`, and the skill lives in `.agents/skills/`.
+
+Review the result on the **Plan** tab and **Mark final**. The agent never sends anything to GroceryList; you do that from Shopping.
+
+**The `mp` CLI** (`bun run mp <command>`) prints JSON. It validates input locally against the same zod schemas the server uses before sending anything.
+
+| Command | |
+|---------|--|
+| `whoami` | Check the connection and token |
+| `context [--week MONDAY] [--today DATE]` | Everything needed to plan a week (defaults to next week) |
+| `recipes [text]` / `recipe <id>` | Search / show recipes |
+| `add-recipe <file>` / `update-recipe <id> <file>` | Create (duplicate titles refused) / replace a recipe |
+| `plan <monday>` / `put-plan <monday> <file> [--force]` | Show / replace a week's plan |
+| `validate <recipe\|plan> <file>` | Check a JSON file without sending it |
+
+**The REST API** behind it is at `/api/v1`, authenticated with `Authorization: Bearer <token>`. It has these routes:
+- `GET /whoami`
+- `GET /context`
+- `GET /recipes` and `POST /recipes`
+- `GET /recipes/:id` and `PUT /recipes/:id`
+- `GET /plans/:week` and `PUT /plans/:week`
+
+Tokens are stored as SHA-256 hashes, can be revoked in Settings, and show when they were last used.
+
 ### Kitchen display
 
 - **Full screen** (`/kiosk`, linked from the header on tablet and desktop, and from Settings): the Tonight screen without navigation, with larger type.
@@ -113,6 +164,7 @@ Modeled on a kitchen dashboard. On a phone the sections stack in one column; on 
 - **Shopping rhythm:** the days you draft the plan, send the list, and pick up groceries.
 - **Your account:** display name and password.
 - **Family logins** (admins only): see below.
+- **API tokens** (admins only): create and revoke tokens for Claude Code and Codex (see above).
 
 ### Accounts & security
 
@@ -150,9 +202,10 @@ apps/
   backend/            Hono + tRPC API server
     src/
       index.ts        Entry point: config checks, migrations, server
-      app.ts          HTTP routes (/api/trpc/*, /health)
+      app.ts          HTTP routes (/api/trpc/*, /api/v1/*, /health)
       router.ts       tRPC router
-      routers/        auth, users, tonight, plans, recipes, family, feedback, shopping, freezer, staples, settings
+      routers/        auth, users, tonight, plans, recipes, family, feedback, shopping, freezer, staples, settings, apiTokens
+      rest/v1.ts      REST API for coding agents
       services/       plans.ts (save/edit a week, push back, move), recipes.ts,
                       order.ts (next-order rules, build from plan, push)
       lib/            groceryClient.ts (GroceryList API), jwt, rate limiting, input limits
@@ -177,6 +230,13 @@ packages/
       schemas.ts      zod schemas for recipes and weekly plans
       types.ts, limits.ts
     tests/
+scripts/
+  mp.ts               CLI for the agent API (bun run mp)
+  *.test.ts           CLI end-to-end tests; workflow/wrapper consistency checks
+agent-workflows/      plan-week.md, add-recipe.md — shared instructions for both agents
+.claude/skills/       Claude Code skill wrappers
+.agents/skills/       Codex skill wrappers
+AGENTS.md             Repo guide for coding agents (CLAUDE.md imports it)
 docker-compose.yml
 docker-compose.grocerylist.yml   Joins GroceryList's Docker network (optional)
 .env.example
@@ -194,7 +254,7 @@ docker-compose.grocerylist.yml   Joins GroceryList's Docker network (optional)
   - Each combined item records which meals it came from.
 - **Dates:** plans use plain `YYYY-MM-DD` dates in the household's local calendar, and weeks run Monday to Sunday. "Push back" moves tonight's meal and every later one by N days.
 - **Plan helpers:** cook nights are numbered in date order. A freezer item linked to a meal produces a "Thaw tonight" reminder the evening before.
-- **Schemas:** the zod input schemas for recipes and weekly plans. The API and the agent CLI will both validate against these.
+- **Schemas:** the zod input schemas for recipes and weekly plans. The tRPC routers, the REST API and the `mp` CLI all validate against these.
 
 ## Running with Docker Compose
 
@@ -276,8 +336,9 @@ bun run dev:frontend
 
 | Command | What it does |
 |---------|--------------|
-| `bun run test` | `bun test` for `@menu/shared` and the backend (tRPC procedures run in-process against in-memory SQLite) |
-| `bun run typecheck` | `tsc --noEmit` in every workspace |
+| `bun run test` | `bun test` for `@menu/shared`, the backend (tRPC procedures run in-process and the REST API over `app.request`, both on in-memory SQLite), and `scripts/`. The `scripts/` tests run the real `mp` CLI against a live server and check that the agent workflows, wrappers and examples agree |
+| `bun run typecheck` | `tsc --noEmit` in every workspace and `scripts/` |
+| `bun run mp <command>` | The agent CLI (see above) |
 | `bun run build` | Production frontend build into `apps/frontend/dist` |
 | `DATABASE_URL=./dev.sqlite bun run seed:demo` | Fills an **empty** database with a sample week (dated relative to today), recipes, a family of five, prep tasks, freezer items, staples and a couple of order items, so you can try the app. Refuses to run if any plan already exists |
 

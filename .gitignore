@@ -8,3 +8,4 @@ data/
 
 # Local screenshot/dev harness pages (contain dev tokens)
 apps/frontend/public/__*.html
+.mp.env

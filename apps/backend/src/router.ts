@@ -9,6 +9,7 @@ import { settingsRouter } from './routers/settings.js'
 import { recipesRouter } from './routers/recipes.js'
 import { familyRouter } from './routers/family.js'
 import { feedbackRouter } from './routers/feedback.js'
+import { apiTokensRouter } from './routers/apiTokens.js'
 import { router } from './trpc.js'
 
 export const appRouter = router({
@@ -23,6 +24,7 @@ export const appRouter = router({
   recipes: recipesRouter,
   family: familyRouter,
   feedback: feedbackRouter,
+  apiTokens: apiTokensRouter,
 })
 
 export type AppRouter = typeof appRouter
