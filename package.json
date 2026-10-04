@@ -11,7 +11,8 @@
     "dev:frontend": "bun --filter frontend dev",
     "test": "bun --filter @menu/shared test && bun --filter backend test",
     "typecheck": "bun --filter '*' typecheck",
-    "build": "bun --filter frontend build"
+    "build": "bun --filter frontend build",
+    "seed:demo": "bun --filter backend seed:demo"
   },
   "devDependencies": {
     "@types/bun": "^1.3.11"
