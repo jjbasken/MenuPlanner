@@ -327,12 +327,19 @@ Requires Bun 1.3+.
 ```bash
 bun install
 
-# Terminal 1 — API on :3001
-JWT_SECRET=$(openssl rand -base64 48) BOOTSTRAP_TOKEN=dev DATABASE_URL=./dev.sqlite bun run dev:backend
+# Optional — fill a fresh dev database with a sample week to click around in
+bun run seed:demo
+
+# Terminal 1 — API on :3001, using apps/backend/dev.sqlite
+JWT_SECRET=$(openssl rand -base64 48) BOOTSTRAP_TOKEN=dev bun run dev:backend
 
 # Terminal 2 — Vite on :5173, proxying /api to :3001
 bun run dev:frontend
 ```
+
+Open http://localhost:5173 and set up the first account with the setup token `dev`.
+
+The dev server and the seed script both use `apps/backend/dev.sqlite` (gitignored) unless `DATABASE_URL` is set. Delete the file to start over.
 
 | Command | What it does |
 |---------|--------------|
@@ -340,7 +347,7 @@ bun run dev:frontend
 | `bun run typecheck` | `tsc --noEmit` in every workspace and `scripts/` |
 | `bun run mp <command>` | The agent CLI (see above) |
 | `bun run build` | Production frontend build into `apps/frontend/dist` |
-| `DATABASE_URL=./dev.sqlite bun run seed:demo` | Fills an **empty** database with a sample week (dated relative to today), recipes, a family of five, prep tasks, freezer items, staples and a couple of order items, so you can try the app. Refuses to run if any plan already exists |
+| `bun run seed:demo` | Fills an **empty** database (`apps/backend/dev.sqlite`, or `DATABASE_URL`) with a sample week (dated relative to today), recipes, a family of five, prep tasks, freezer items, staples and a couple of order items, so you can try the app. Refuses to run if any plan already exists |
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, the tests, the frontend build, and both Docker image builds on every pull request.
 

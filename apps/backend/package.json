@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
+    "dev": "DATABASE_URL=${DATABASE_URL:-./dev.sqlite} bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit -p .",

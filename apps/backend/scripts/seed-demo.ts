@@ -1,20 +1,20 @@
 // Fills an empty database with a believable week so the UI can be tried out:
-//   DATABASE_URL=./dev.sqlite bun run seed:demo
+//   bun run seed:demo                      → apps/backend/dev.sqlite (what `bun run dev:backend` uses)
+//   DATABASE_URL=/path/to/db bun run seed:demo
 // Dates are relative to today. Refuses to touch a database that already has plans.
 import { randomUUID } from 'crypto'
+import { resolve } from 'path'
 import { addDays, planInputSchema, todayISO, weekStart, type PlanMealInput } from '@menu/shared'
-import { db } from '../src/db/index.js'
+import { createDb } from '../src/db/index.js'
 import { migrate } from '../src/db/migrate.js'
 import { familyMembers, freezerItems, mealPlans, prepTasks, recipeIngredients, recipes, shoppingItems, staples } from '../src/db/schema.js'
 import { savePlan } from '../src/services/plans.js'
 
-if (!process.env.DATABASE_URL) {
-  console.error('Set DATABASE_URL to the SQLite file to seed.')
-  process.exit(1)
-}
+const dbPath = resolve(process.env.DATABASE_URL ?? resolve(import.meta.dir, '..', 'dev.sqlite'))
+const db = createDb(dbPath)
 migrate(db)
 if (db.select({ id: mealPlans.id }).from(mealPlans).get()) {
-  console.error('This database already has plans — not seeding.')
+  console.error(`${dbPath} already has plans — not seeding.`)
   process.exit(1)
 }
 
@@ -106,4 +106,4 @@ for (const name of ['Gallon freezer bags', 'Olive oil, preferably the terra dely
   db.insert(shoppingItems).values({ id: randomUUID(), name, source: 'manual', createdAt: now }).run()
 }
 
-console.log(`Seeded ${meals.length} meals across ${byWeek.size} week(s), 4 recipes, ${family.length} family members, ${freezer.length} freezer items, prep tasks and 2 staples.`)
+console.log(`Seeded ${dbPath}: ${meals.length} meals across ${byWeek.size} week(s), 4 recipes, ${family.length} family members, ${freezer.length} freezer items, prep tasks and 2 staples.`)
