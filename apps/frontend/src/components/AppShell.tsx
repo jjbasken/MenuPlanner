@@ -3,6 +3,7 @@ import { NavLink } from 'react-router'
 import { longDateLabel } from '@menu/shared'
 import { Icon, type IconName } from './Icon.js'
 import { useToday } from '../hooks/useToday.js'
+import { trpc } from '../lib/trpc.js'
 
 type NavItem = { to: string; label: string; icon: IconName; badge?: number }
 
@@ -11,6 +12,7 @@ type NavItem = { to: string; label: string; icon: IconName; badge?: number }
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Tonight', icon: 'tonight' },
   { to: '/plan', label: 'Plan', icon: 'plan' },
+  { to: '/shopping', label: 'Shopping', icon: 'shopping' },
   { to: '/feedback', label: 'Feedback', icon: 'feedback' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
@@ -25,7 +27,8 @@ export function AppShell({ title, children, actions, badges, kiosk = false }: {
   kiosk?: boolean
 }) {
   const today = useToday()
-  const items = NAV_ITEMS.map(i => ({ ...i, badge: badges?.[i.to] }))
+  const { data: pendingCount } = trpc.shopping.pendingCount.useQuery(undefined, { enabled: !kiosk, staleTime: 60_000 })
+  const items = NAV_ITEMS.map(i => ({ ...i, badge: badges?.[i.to] ?? (i.to === '/shopping' ? pendingCount : undefined) }))
   if (kiosk) {
     return (
       <div className="app app--kiosk">

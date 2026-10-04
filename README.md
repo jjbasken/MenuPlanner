@@ -2,7 +2,7 @@
 
 A self-hosted family meal planner, built to be used mostly from a phone. Everyone in the household gets their own login and shares one plan.
 
-> **Status:** early development. Planning works end to end in the app: recipes, the weekly plan and prep schedule, the Tonight screen, family feedback, and the kitchen display. Still to come: building the shopping list from the plan and pushing it to GroceryList, and AI planning through Claude Code / Codex. This README is updated with each release.
+> **Status:** early development. Planning works end to end in the app: recipes, the weekly plan and prep schedule, the Tonight screen, family feedback, and the kitchen display. Still to come: AI planning through Claude Code / Codex. This README is updated with each release.
 
 <p>
   <img src="docs/screenshots/tonight-phone.png" alt="Tonight screen on a phone" width="260">
@@ -11,6 +11,8 @@ A self-hosted family meal planner, built to be used mostly from a phone. Everyon
 </p>
 <p>
   <img src="docs/screenshots/plan-phone.png" alt="Week plan and prep schedule on a phone" width="260">
+  &nbsp;
+  <img src="docs/screenshots/shopping-phone.png" alt="Shopping list on a phone" width="260">
   &nbsp;
   <img src="docs/screenshots/feedback-phone.png" alt="Family feedback on a phone" width="260">
 </p>
@@ -75,6 +77,24 @@ Modeled on a kitchen dashboard. On a phone the sections stack in one column; on 
   - Amounts can be typed as `2`, `1.5`, `1/2`, `1 1/2` or `1½`.
   - Deleting a recipe keeps any planned meals that used it, by title.
 
+### Shopping
+
+- **Add ingredients from the plan:** pick this week or next and press **Add**.
+  - All of that week's cook-night recipe ingredients are combined, scaled to each meal's servings, and noted with the meals they're for ("Soy sauce · 6 tbsp — for Turkey egg roll in a bowl, Shrimp stir-fry").
+  - Ingredients that match a staple are left to the staple's row.
+  - Meals with no recipe are listed, so you can add their ingredients by hand.
+  - Run it again after changing the plan: quantities update in place, ingredients no longer needed drop off, and anything you removed stays removed.
+- **Review:**
+  - Items are grouped into *For the plan*, *Added by hand* and *Staples*.
+  - Tap an item to edit its name, quantity or note.
+  - ✕ removes an item; **Have it** skips a staple. Both go to a *Not ordering this time* section where you can undo them.
+  - The Shopping tab's badge shows how many items will be sent.
+- **Send to GroceryList:**
+  - Pick the list and choose whether to **combine with items already on the list**. Combining avoids duplicate rows: the extra amount is added to the existing item's notes.
+  - Then press **Send N items**.
+  - After a successful send, a new order starts, with your staples back in it. If GroceryList refuses or can't be reached, nothing changes and the reason is shown.
+  - The list you used becomes the default.
+
 ### Feedback
 
 - **Ratings:** each meal from the last ten days gets a row per family member with big 👍 😐 👎 buttons that kids can use. Tap the same button again to clear it.
@@ -133,15 +153,16 @@ apps/
       app.ts          HTTP routes (/api/trpc/*, /health)
       router.ts       tRPC router
       routers/        auth, users, tonight, plans, recipes, family, feedback, shopping, freezer, staples, settings
-      services/       plans.ts (save/edit a week, push back, move), recipes.ts, order.ts (next-order rules)
+      services/       plans.ts (save/edit a week, push back, move), recipes.ts,
+                      order.ts (next-order rules, build from plan, push)
+      lib/            groceryClient.ts (GroceryList API), jwt, rate limiting, input limits
       db/             schema.ts (Drizzle), migrate.ts (idempotent SQL run at boot)
-      lib/            jwt, rate limiting, input limits, secret helpers
     scripts/          seed-demo.ts
     tests/            bun:test suites
     Dockerfile
   frontend/           React SPA
     src/
-      routes/         Tonight, Kiosk, Plan, Recipes, Recipe, RecipeEdit, Feedback, Settings, Login, Setup
+      routes/         Tonight, Kiosk, Plan, Recipes, Recipe, RecipeEdit, Shopping, Feedback, Settings, Login, Setup
       components/     AppShell (header + tab bar), BottomSheet, MealPills, PlanTabs, Icon, ProtectedRoute
       hooks/ lib/     auth, tRPC client, session storage
       index.css       Design tokens + phone-first styles
@@ -157,6 +178,7 @@ packages/
       types.ts, limits.ts
     tests/
 docker-compose.yml
+docker-compose.grocerylist.yml   Joins GroceryList's Docker network (optional)
 .env.example
 ```
 
@@ -201,6 +223,24 @@ docker compose --profile tunnel up -d --build
 
 Set `CLOUDFLARE_TUNNEL_TOKEN` in `.env`, and in the Cloudflare dashboard point the tunnel's public hostname at `http://menu-frontend:80`. nginx sends HSTS unconditionally because TLS is terminated at Cloudflare.
 
+### Connecting GroceryList
+
+The Shopping tab sends the order to [GroceryList](https://github.com/jjbasken/GroceryList) through its token-authenticated external API (`/api/external/*`).
+
+1. Generate a shared token, e.g. `openssl rand -base64 32`.
+2. In GroceryList's `.env`, set `EXTERNAL_API_TOKEN` to that token and restart it.
+3. In MenuPlanner's `.env`, set `GROCERYLIST_TOKEN` to the same value. Then, depending on where GroceryList runs:
+   - **Same Docker host:** start MenuPlanner with the override file, which joins the backend to GroceryList's `grocery-net` network and uses `http://web:5000`:
+
+     ```bash
+     docker compose -f docker-compose.yml -f docker-compose.grocerylist.yml up -d --build
+     ```
+
+     Add `--profile tunnel` as usual. GroceryList's stack must already be running, because it creates the network.
+   - **Anywhere else:** set `GROCERYLIST_URL` to its public HTTPS address, e.g. `https://grocerylist.example.com`, and start MenuPlanner normally.
+
+The Shopping tab shows whether GroceryList is connected, and explains the problem if it isn't. Typical problems are a wrong token, the external API not being enabled, or an HTTP→HTTPS redirect from using the wrong URL.
+
 ### Installing on a phone
 
 Open the site over HTTPS (for example through the tunnel) and add it to the home screen. On iOS, use **Share → Add to Home Screen**; on Android, use **Install app**. It then opens full-screen like a native app.
@@ -217,6 +257,8 @@ Open the site over HTTPS (for example through the tunnel) and add it to the home
 | `DATA_PATH` | No | `./data` | Host directory for the database (Compose) |
 | `APP_UID` / `APP_GID` | No | `1000` | User the backend container runs as (Compose) |
 | `CLOUDFLARE_TUNNEL_TOKEN` | With `--profile tunnel` | — | Cloudflare Tunnel connector token |
+| `GROCERYLIST_URL` | For sending orders | — (`http://web:5000` with the override file) | Base URL of GroceryList |
+| `GROCERYLIST_TOKEN` | For sending orders | — | Must equal GroceryList's `EXTERNAL_API_TOKEN` |
 
 ## Development
 

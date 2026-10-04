@@ -1,0 +1,19 @@
+# Joins the backend to GroceryList's Docker network so it can push items to
+# http://web:5000 without leaving the host. Use together with the main file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.grocerylist.yml up -d
+#
+# Requires the GroceryList stack to be running (it creates the `grocery-net`
+# network) with EXTERNAL_API_TOKEN set to the same value as GROCERYLIST_TOKEN.
+services:
+  menu-backend:
+    environment:
+      GROCERYLIST_URL: ${GROCERYLIST_URL:-http://web:5000}
+      GROCERYLIST_TOKEN: ${GROCERYLIST_TOKEN:?GROCERYLIST_TOKEN is required}
+    networks:
+      - default
+      - grocery-net
+
+networks:
+  grocery-net:
+    external: true

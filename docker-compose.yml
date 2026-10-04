@@ -21,6 +21,10 @@ services:
       DATABASE_URL: /data/menu.sqlite
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
+      # GroceryList integration (optional). To reach a GroceryList stack on the
+      # same Docker host, also use docker-compose.grocerylist.yml.
+      GROCERYLIST_URL: ${GROCERYLIST_URL:-}
+      GROCERYLIST_TOKEN: ${GROCERYLIST_TOKEN:-}
     volumes:
       - ${DATA_PATH:-./data}:/data
     restart: unless-stopped
