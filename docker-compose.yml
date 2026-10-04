@@ -1,0 +1,36 @@
+services:
+  menu-frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      # Loopback only: public traffic comes through the Cloudflare tunnel.
+      - "127.0.0.1:${MENU_PORT:-3010}:80"
+    depends_on:
+      menu-backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  menu-backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    # Not published to the host — only nginx (menu-frontend) talks to it.
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    environment:
+      DATABASE_URL: /data/menu.sqlite
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
+    volumes:
+      - ${DATA_PATH:-./data}:/data
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required for the tunnel profile}
+    depends_on:
+      - menu-frontend
