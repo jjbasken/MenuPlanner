@@ -60,3 +60,12 @@ describe('pushBack', () => {
     expect(pushBack(meals, '2026-10-04', 2).map(m => m.date)).toEqual(['2026-10-06', '2026-10-07', '2026-10-08'])
   })
 })
+
+describe('formatMinutes', () => {
+  test('reads naturally', async () => {
+    const { formatMinutes } = await import('../src/dates.js')
+    expect(formatMinutes(25)).toBe('25 min')
+    expect(formatMinutes(60)).toBe('1 hr')
+    expect(formatMinutes(495)).toBe('8 hr 15 min')
+  })
+})

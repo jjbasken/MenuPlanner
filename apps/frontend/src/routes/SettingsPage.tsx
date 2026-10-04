@@ -19,6 +19,7 @@ export function SettingsPage() {
         <CadenceSection />
         <AccountSection />
         <AdminOnly><UsersSection /></AdminOnly>
+        <AdminOnly><ApiTokensSection /></AdminOnly>
       </div>
     </AppShell>
   )
@@ -310,5 +311,57 @@ function MemberForm({ member, onDone }: { member?: Member; onDone: () => void })
           : <button type="button" className="btn btn-ghost" onClick={() => setConfirm(true)}>Remove</button>)}
       </div>
     </form>
+  )
+}
+
+function ApiTokensSection() {
+  const utils = trpc.useUtils()
+  const { data: tokens = [] } = trpc.apiTokens.list.useQuery()
+  const create = trpc.apiTokens.create.useMutation({ onSuccess: () => utils.apiTokens.list.invalidate() })
+  const revoke = trpc.apiTokens.revoke.useMutation({ onSuccess: () => utils.apiTokens.list.invalidate() })
+  const [name, setName] = useState('')
+  const [created, setCreated] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<string | null>(null)
+  const when = (ms: number | null) => (ms ? new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'never')
+
+  return (
+    <section className="card section">
+      <h2 className="section-title">API tokens</h2>
+      <p className="muted">For Claude Code and Codex: the <code>plan-week</code> and <code>add-recipe</code> workflows use a token to read and write plans and recipes. Put it in <code>.mp.env</code> as <code>MENUPLANNER_TOKEN</code>.</p>
+      {created && (
+        <div className="token-reveal" role="status">
+          <div className="field-label">Copy this token now — it won't be shown again.</div>
+          <code className="token-value">{created}</code>
+          <div className="btn-row">
+            <button className="btn btn-small" onClick={() => navigator.clipboard?.writeText(created).catch(() => {})}>Copy</button>
+            <button className="btn btn-small btn-ghost" onClick={() => setCreated(null)}>Done</button>
+          </div>
+        </div>
+      )}
+      {tokens.length > 0 && (
+        <ul className="rows">
+          {tokens.map(t => (
+            <li key={t.id} className="row">
+              <div className="row-main">
+                <div className="row-title">{t.name}</div>
+                <div className="muted small">Created {when(t.createdAt)}{t.createdBy ? ` by ${t.createdBy}` : ''} · last used {when(t.lastUsedAt)}</div>
+              </div>
+              {confirm === t.id
+                ? <button className="btn btn-small btn-danger" onClick={() => { revoke.mutate({ id: t.id }); setConfirm(null) }}>Really revoke?</button>
+                : <button className="btn btn-small" onClick={() => setConfirm(t.id)}>Revoke</button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="add-row" onSubmit={async e => {
+        e.preventDefault()
+        const res = await create.mutateAsync({ name: name.trim() })
+        setCreated(res.token)
+        setName('')
+      }}>
+        <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Claude Code on my laptop" aria-label="Token name" required />
+        <button className="btn btn-primary" type="submit" disabled={create.isPending}>Create</button>
+      </form>
+    </section>
   )
 }

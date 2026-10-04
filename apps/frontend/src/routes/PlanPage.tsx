@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
-  addDays, dayOfMonth, dowShort, MEAL_KINDS, shortDateLabel, weekDates, weekStart as weekStartOf,
+  addDays, dayOfMonth, dowShort, formatMinutes, MEAL_KINDS, shortDateLabel, weekDates, weekStart as weekStartOf,
   type ISODate, type MealKind,
 } from '@menu/shared'
 import { AppShell } from '../components/AppShell.js'
@@ -79,7 +79,7 @@ export function PlanPage() {
                             <KindPill kind={meal.kind} cook={meal.kind === 'cook' ? { index: cookIndex, total: cookTotal } : null} />
                             {(meal.sideNote || meal.totalMin || meal.freezer.length > 0) && (
                               <div className="day-meta">
-                                {[meal.totalMin && `${meal.totalMin} min`, meal.sideNote, meal.freezer.length > 0 && `❄ ${meal.freezer.map(f => f.name).join(', ')}`].filter(Boolean).join(' · ')}
+                                {[meal.totalMin && formatMinutes(meal.totalMin), meal.sideNote, meal.freezer.length > 0 && `❄ ${meal.freezer.map(f => f.name).join(', ')}`].filter(Boolean).join(' · ')}
                               </div>
                             )}
                           </>

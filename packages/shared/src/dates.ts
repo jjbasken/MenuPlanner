@@ -90,3 +90,11 @@ export function dayOfMonth(s: ISODate): number {
 export function pushBack<T extends { id: string; date: ISODate }>(meals: T[], from: ISODate, days: number): { id: string; date: ISODate }[] {
   return meals.filter(m => m.date >= from).map(m => ({ id: m.id, date: addDays(m.date, days) }))
 }
+
+/** "25 min", "1 hr", "8 hr 15 min" */
+export function formatMinutes(min: number): string {
+  if (min < 60) return `${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m ? `${h} hr ${m} min` : `${h} hr`
+}
