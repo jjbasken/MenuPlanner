@@ -16,6 +16,7 @@ import { RecipesPage } from './routes/RecipesPage.js'
 import { RecipePage } from './routes/RecipePage.js'
 import { RecipeEditPage } from './routes/RecipeEditPage.js'
 import { FeedbackPage } from './routes/FeedbackPage.js'
+import { ShoppingPage } from './routes/ShoppingPage.js'
 
 export function App() {
   const [trpcClient] = useState(() => createTrpcClient(() => session.getToken()))
@@ -35,6 +36,7 @@ export function App() {
                 <Route path="/plan/recipes/new" element={<RecipeEditPage />} />
                 <Route path="/plan/recipes/:id" element={<RecipePage />} />
                 <Route path="/plan/recipes/:id/edit" element={<RecipeEditPage />} />
+                <Route path="/shopping" element={<ShoppingPage />} />
                 <Route path="/feedback" element={<FeedbackPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>

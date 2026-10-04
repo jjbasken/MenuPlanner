@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { verifyToken } from './lib/jwt.js'
 import { db as defaultDb, type Db } from './db/index.js'
 import { revokedTokens, users } from './db/schema.js'
+import { groceryClientFromEnv, type GroceryClient } from './lib/groceryClient.js'
 
 export type AppContext = {
   db: Db
@@ -13,6 +14,8 @@ export type AppContext = {
   // Source address for rate limiting, from the reverse proxy. Optional so test
   // callers can build a bare context; limits keyed on an account still apply.
   clientIp?: string | null
+  // GroceryList integration; null when not configured. Tests inject a stub.
+  grocery?: GroceryClient | null
 }
 
 /**
@@ -30,29 +33,32 @@ export function readClientIp(req: Request): string | null {
   return req.headers.get('x-real-ip')?.trim().slice(0, 64) || null
 }
 
+const grocery = groceryClientFromEnv()
+
 export async function createContext({ req }: { req: Request }, dbOverride?: Db): Promise<AppContext> {
   const db = dbOverride ?? defaultDb
   const clientIp = readClientIp(req)
+  const base = { db, clientIp, grocery }
   const auth = req.headers.get('authorization') ?? ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null
-  if (!token) return { db, userId: null, clientIp }
+  if (!token) return { ...base, userId: null }
 
   const tokenData = await verifyToken(token)
-  if (!tokenData) return { db, userId: null, clientIp }
+  if (!tokenData) return { ...base, userId: null }
 
   // Reject tokens that were explicitly logged out. Unlike a tokenVersion bump this
   // ends one session without signing the user out on their other devices.
   const [revoked] = await db.select({ jti: revokedTokens.jti })
     .from(revokedTokens)
     .where(eq(revokedTokens.jti, tokenData.tokenId))
-  if (revoked) return { db, userId: null, clientIp }
+  if (revoked) return { ...base, userId: null }
 
   // A user's tokenVersion is bumped on password change / admin revoke, which
   // invalidates every outstanding token for that user.
   const [user] = await db.select({ tokenVersion: users.tokenVersion })
     .from(users)
     .where(eq(users.id, tokenData.userId))
-  if (!user || user.tokenVersion !== tokenData.tokenVersion) return { db, userId: null, clientIp }
+  if (!user || user.tokenVersion !== tokenData.tokenVersion) return { ...base, userId: null }
 
-  return { db, userId: tokenData.userId, tokenId: tokenData.tokenId, tokenExpiresAt: tokenData.expiresAt, clientIp }
+  return { ...base, userId: tokenData.userId, tokenId: tokenData.tokenId, tokenExpiresAt: tokenData.expiresAt }
 }

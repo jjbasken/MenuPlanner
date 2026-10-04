@@ -31,7 +31,7 @@ function useOptimisticTonight(today: ISODate) {
     rollback(ctx: { prev?: Tonight } | undefined) {
       if (ctx?.prev) utils.tonight.get.setData(key, ctx.prev)
     },
-    refresh: () => utils.tonight.get.invalidate(key),
+    refresh: () => { void utils.tonight.get.invalidate(key); void utils.shopping.invalidate() },
   }
 }
 
