@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute.js'
 import { LoginPage } from './routes/LoginPage.js'
 import { SetupPage } from './routes/SetupPage.js'
 import { SettingsPage } from './routes/SettingsPage.js'
+import { TonightPage } from './routes/TonightPage.js'
 
 export function App() {
   const [trpcClient] = useState(() => createTrpcClient(() => session.getToken()))
@@ -21,9 +22,10 @@ export function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route element={<ProtectedRoute />}>
+                <Route path="/" element={<TonightPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
-              <Route path="*" element={<Navigate to="/settings" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

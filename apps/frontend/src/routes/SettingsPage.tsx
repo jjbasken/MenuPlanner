@@ -4,11 +4,15 @@ import { AdminOnly } from '../components/ProtectedRoute.js'
 import { useAuth, useMe } from '../hooks/useAuth.js'
 import { trpc } from '../lib/trpc.js'
 import { errorMessage } from '../lib/errors.js'
+import { DOW_NAMES } from '@menu/shared'
+import { Icon } from '../components/Icon.js'
 
 export function SettingsPage() {
   return (
     <AppShell title="Settings">
       <div className="settings-grid">
+        <StaplesSection />
+        <CadenceSection />
         <AccountSection />
         <AdminOnly><UsersSection /></AdminOnly>
       </div>
@@ -146,6 +150,78 @@ function UsersSection() {
         {error && <div className="form-error" role="alert">{error}</div>}
         <button className="btn btn-primary" type="submit" disabled={create.isPending}>Add login</button>
       </form>
+    </section>
+  )
+}
+
+function StaplesSection() {
+  const utils = trpc.useUtils()
+  const { data: staples = [] } = trpc.staples.list.useQuery()
+  const refresh = () => { void utils.staples.list.invalidate(); void utils.tonight.get.invalidate() }
+  const add = trpc.staples.add.useMutation({ onSuccess: refresh })
+  const toggle = trpc.staples.setInEveryOrder.useMutation({ onSuccess: refresh })
+  const del = trpc.staples.delete.useMutation({ onSuccess: refresh })
+  const [name, setName] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  return (
+    <section className="card section">
+      <h2 className="section-title">Staples</h2>
+      <p className="muted">Things you buy most weeks. They're added to every order — tap <strong>Have it</strong> on the Tonight screen when you're still stocked.</p>
+      <form className="add-row" onSubmit={async e => {
+        e.preventDefault()
+        setError(null)
+        try {
+          await add.mutateAsync({ name: name.trim(), inEveryOrder: true })
+          setName('')
+        } catch (err) { setError(errorMessage(err)) }
+      }}>
+        <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Rice" aria-label="New staple" required />
+        <button className="btn btn-primary" type="submit" disabled={add.isPending}>Add</button>
+      </form>
+      {error && <div className="form-error" role="alert">{error}</div>}
+      {staples.length > 0 && (
+        <ul className="rows">
+          {staples.map(s => (
+            <li key={s.id} className="row">
+              <div className="row-main"><div className="row-title">{s.name}</div></div>
+              <label className="check">
+                <input type="checkbox" checked={s.inEveryOrder} onChange={e => toggle.mutate({ id: s.id, inEveryOrder: e.target.checked })} />
+                <span>Every order</span>
+              </label>
+              <button className="icon-btn" aria-label={`Delete ${s.name}`} onClick={() => del.mutate({ id: s.id })}><Icon name="close" /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function CadenceSection() {
+  const utils = trpc.useUtils()
+  const { data: settings } = trpc.settings.get.useQuery()
+  const update = trpc.settings.updateCadence.useMutation({
+    onSuccess: () => { void utils.settings.get.invalidate(); void utils.tonight.get.invalidate() },
+  })
+  if (!settings) return null
+  const current = { draftDow: settings.draftDow, listDow: settings.listDow, pickupDow: settings.pickupDow }
+  const field = (key: keyof typeof current, label: string, hint: string) => (
+    <label className="field">
+      <span className="field-label">{label}</span>
+      <select className="select" value={current[key]} onChange={e => update.mutate({ ...current, [key]: Number(e.target.value) })}>
+        {DOW_NAMES.map((d, i) => <option key={d} value={i}>{d}</option>)}
+      </select>
+      <span className="field-hint">{hint}</span>
+    </label>
+  )
+  return (
+    <section className="card section">
+      <h2 className="section-title">Shopping rhythm</h2>
+      <p className="muted">Shown at the bottom of the Tonight screen as "Next plan: draft · list · pickup".</p>
+      {field('draftDow', 'Draft the next plan on', 'When next week\'s meals get planned.')}
+      {field('listDow', 'Send the list on', 'When the grocery list goes out.')}
+      {field('pickupDow', 'Pick up on', 'When the groceries arrive.')}
     </section>
   )
 }

@@ -2,9 +2,48 @@
 
 A self-hosted family meal planner, built to be used mostly from a phone. Everyone in the household gets their own login and shares one plan.
 
-> **Status:** early development. This release contains the foundation: accounts, the app shell and deployment. Meal planning features land in follow-up releases, and this README is updated with each one.
+> **Status:** early development. The **Tonight** home screen, the next-order list, the freezer, staples and accounts work. Creating and editing weekly plans and recipes in the app comes in a follow-up release (until then, plans come from the demo seed), as do shopping-list review and the GroceryList push. This README is updated with each release.
+
+<p>
+  <img src="docs/screenshots/tonight-phone.png" alt="Tonight screen on a phone" width="260">
+  &nbsp;
+  <img src="docs/screenshots/tonight-desktop.png" alt="Tonight screen on a desktop" width="540">
+</p>
+
+<sub>Screenshots use the demo data from <code>bun run seed:demo</code>.</sub>
 
 ## Features
+
+### Tonight (home screen)
+
+Modeled on a kitchen dashboard. On a phone the sections stack in one column; on a tablet they use two columns; on a desktop they sit side by side in three.
+
+- **Tonight's meal:**
+  - A big card showing the meal's kind (**Cook night** with "1 of 3", **Leftovers**, or **Flexible**), its title, and a side note like "Eggs for breakfast."
+  - Tap it to open a sheet where you can rate the meal (1–5 stars), add notes, or move it to another day. If another meal is planned on that day, the two swap.
+- **"Not cooking tonight? Slide the plan later":** **Push back 1 day** or **2 days** moves tonight's meal, every later meal, and any unfinished prep tasks later. Thaw reminders move with their meals.
+- **Coming up:** the next seven days, each with its meal and kind pill. Days that need something thawed show a blue ❄ "Thaw tonight: the chicken breast (about 2 lb)" the evening before the meal that uses it.
+- **Next order:**
+  - Quick-add an item, or ✕ one off the list.
+  - **Staples** (rice, protein shakes…) appear in every order with a **Have it** button for when you're still stocked. Items you mark this way stay off the list until the order is sent.
+- **In the freezer:**
+  - Inventory, with the meal each item is set aside for, or "or a backup".
+  - Tap **Used** once something comes out.
+  - **Add to freezer** opens a sheet where you can link the item to an upcoming meal.
+- **Shopping rhythm:** the footer reads "Next plan: draft Tue, Oct 6 · list Thu, Oct 8 · pickup Sun, Oct 11", and you set the days in Settings.
+- **Fast on a phone:**
+  - The whole screen comes from one request.
+  - Taps such as Have it, Used, Push back and adding an item update the screen immediately, and are undone if the server rejects them.
+  - "Today" follows the phone's calendar and rolls over at midnight.
+
+### Settings
+
+- **Staples:** add or remove staples, and choose whether each one goes into every order.
+- **Shopping rhythm:** the days you draft the plan, send the list, and pick up groceries.
+- **Your account:** display name and password.
+- **Family logins** (admins only): see below.
+
+### Accounts & security
 
 - **Separate logins, shared household data.**
   - The first account is created through a one-time setup screen protected by `BOOTSTRAP_TOKEN`, and it becomes the admin.
@@ -41,16 +80,18 @@ apps/
     src/
       index.ts        Entry point: config checks, migrations, server
       app.ts          HTTP routes (/api/trpc/*, /health)
-      router.ts       tRPC router (auth, users)
-      routers/        auth.ts, users.ts
+      router.ts       tRPC router
+      routers/        auth, users, tonight, plans, shopping, freezer, staples, settings
+      services/       plans.ts (save a week, push back, move), order.ts (next-order rules)
       db/             schema.ts (Drizzle), migrate.ts (idempotent SQL run at boot)
       lib/            jwt, rate limiting, input limits, secret helpers
+    scripts/          seed-demo.ts
     tests/            bun:test suites
     Dockerfile
   frontend/           React SPA
     src/
-      routes/         LoginPage, SetupPage, SettingsPage
-      components/     AppShell (header + tab bar), Icon, ProtectedRoute
+      routes/         TonightPage, SettingsPage, LoginPage, SetupPage
+      components/     AppShell (header + tab bar), BottomSheet, MealPills, Icon, ProtectedRoute
       hooks/ lib/     auth, tRPC client, session storage
       index.css       Design tokens + phone-first styles
     public/           manifest.json, sw.js, icons
@@ -82,7 +123,7 @@ docker-compose.yml
 - **Plan helpers:** cook nights are numbered in date order. A freezer item linked to a meal produces a "Thaw tonight" reminder the evening before.
 - **Schemas:** the zod input schemas for recipes and weekly plans. The API and the agent CLI will both validate against these.
 
-The database schema already includes the tables for upcoming features: recipes, plans, the freezer, staples, shopping items and feedback. Only accounts are wired up so far.
+The database schema also includes tables for recipes, family members and feedback, which have no screens yet.
 
 ## Running with Docker Compose
 
@@ -147,6 +188,7 @@ bun run dev:frontend
 | `bun run test` | `bun test` for `@menu/shared` and the backend (tRPC procedures run in-process against in-memory SQLite) |
 | `bun run typecheck` | `tsc --noEmit` in every workspace |
 | `bun run build` | Production frontend build into `apps/frontend/dist` |
+| `DATABASE_URL=./dev.sqlite bun run seed:demo` | Fills an **empty** database with a sample week (dated relative to today), recipes, freezer items, staples and a couple of order items, so you can try the Tonight screen. Refuses to run if any plan already exists |
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, the tests, the frontend build, and both Docker image builds on every pull request.
 

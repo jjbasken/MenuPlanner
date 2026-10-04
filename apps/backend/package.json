@@ -6,7 +6,8 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "seed:demo": "bun run scripts/seed-demo.ts"
   },
   "dependencies": {
     "@menu/shared": "workspace:*",
