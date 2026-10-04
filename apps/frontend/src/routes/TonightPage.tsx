@@ -35,13 +35,13 @@ function useOptimisticTonight(today: ISODate) {
   }
 }
 
-export function TonightPage() {
+export function TonightPage({ kiosk = false }: { kiosk?: boolean }) {
   const today = useToday()
-  const { data, isLoading, error } = trpc.tonight.get.useQuery({ today }, { refetchInterval: 5 * 60_000 })
+  const { data, isLoading, error } = trpc.tonight.get.useQuery({ today }, { refetchInterval: kiosk ? 60_000 : 5 * 60_000 })
   const [openMeal, setOpenMeal] = useState<Meal | null>(null)
 
   return (
-    <AppShell title="Tonight">
+    <AppShell title="Tonight" kiosk={kiosk}>
       {isLoading && <p className="muted">Loading…</p>}
       {error && <p className="form-error">{errorMessage(error)}</p>}
       {data && (

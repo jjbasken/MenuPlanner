@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { longDateLabel } from '@menu/shared'
 import { Icon, type IconName } from './Icon.js'
@@ -10,18 +10,40 @@ type NavItem = { to: string; label: string; icon: IconName; badge?: number }
 // from tablet width up they move into the header as pill buttons.
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Tonight', icon: 'tonight' },
+  { to: '/plan', label: 'Plan', icon: 'plan' },
+  { to: '/feedback', label: 'Feedback', icon: 'feedback' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
-export function AppShell({ title, children, actions, badges }: {
+export function AppShell({ title, children, actions, badges, kiosk = false }: {
   title: string
   children: ReactNode
   actions?: ReactNode
   /** Badge counts by route, e.g. { '/shopping': 4 }. */
   badges?: Record<string, number>
+  /** Full-screen kitchen display: no navigation, larger type. */
+  kiosk?: boolean
 }) {
   const today = useToday()
   const items = NAV_ITEMS.map(i => ({ ...i, badge: badges?.[i.to] }))
+  if (kiosk) {
+    return (
+      <div className="app app--kiosk">
+        <div className="tablecloth" aria-hidden="true" />
+        <header className="app-header">
+          <div className="app-heading">
+            <div className="eyebrow">{longDateLabel(today)}</div>
+            <h1 className="page-title">{title}</h1>
+          </div>
+          <nav className="kiosk-nav" aria-label="Display">
+            <FullscreenToggle />
+            <NavLink to="/" className="nav-pill">Exit</NavLink>
+          </nav>
+        </header>
+        <main className="app-main">{children}</main>
+      </div>
+    )
+  }
   return (
     <div className="app">
       <div className="tablecloth" aria-hidden="true" />
@@ -33,6 +55,7 @@ export function AppShell({ title, children, actions, badges }: {
         <nav className="top-nav" aria-label="Main">
           {items.map(item => <NavPill key={item.to} item={item} />)}
           {actions}
+          <NavLink to="/kiosk" className="nav-pill nav-pill--quiet"><Icon name="fullscreen" /><span>Full screen</span></NavLink>
         </nav>
       </header>
       <main className="app-main">{children}</main>
@@ -58,5 +81,21 @@ function NavPill({ item }: { item: NavItem }) {
       <span>{item.label}</span>
       {item.badge ? <span className="badge">{item.badge}</span> : null}
     </NavLink>
+  )
+}
+
+function FullscreenToggle() {
+  const [isFull, setIsFull] = useState(() => !!document.fullscreenElement)
+  useEffect(() => {
+    const onChange = () => setIsFull(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  // iPhone Safari has no Fullscreen API; installed to the home screen it's already full-screen.
+  if (!document.documentElement.requestFullscreen) return null
+  return (
+    <button className="nav-pill" onClick={() => (isFull ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}>
+      <Icon name="fullscreen" /><span>{isFull ? 'Exit full screen' : 'Full screen'}</span>
+    </button>
   )
 }

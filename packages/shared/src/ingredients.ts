@@ -200,3 +200,30 @@ export function scaleQty(qty: number | null, recipeServings: number, servings: n
   if (qty == null || !servings || !recipeServings) return qty
   return (qty * servings) / recipeServings
 }
+
+const UNICODE_FRACTIONS: Record<string, number> = { '¼': 0.25, '½': 0.5, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125 }
+
+/**
+ * Parses what people type into a quantity box: "2", "1.5", "1/2", "1 1/2",
+ * "1½", "½". Returns null for blank input and NaN for anything unparseable.
+ */
+export function parseQty(input: string): number | null {
+  let s = input.trim()
+  if (!s) return null
+  let total = 0
+  const uni = s.match(/[¼½¾⅓⅔⅛]$/)
+  if (uni) {
+    total += UNICODE_FRACTIONS[uni[0]]
+    s = s.slice(0, -1).trim()
+    if (!s) return total
+  }
+  const m = s.match(/^(\d+(?:\.\d+)?)?(?:\s*(\d+)\s*\/\s*(\d+))?$/)
+  if (!m || (!m[1] && !m[2])) return NaN
+  if (m[1] && m[2] && !/\s/.test(s)) return NaN // "11/2" is ambiguous
+  if (m[1]) total += Number(m[1])
+  if (m[2]) {
+    if (Number(m[3]) === 0) return NaN
+    total += Number(m[2]) / Number(m[3])
+  }
+  return total
+}

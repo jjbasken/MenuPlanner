@@ -6,6 +6,9 @@ import { shoppingRouter } from './routers/shopping.js'
 import { freezerRouter } from './routers/freezer.js'
 import { staplesRouter } from './routers/staples.js'
 import { settingsRouter } from './routers/settings.js'
+import { recipesRouter } from './routers/recipes.js'
+import { familyRouter } from './routers/family.js'
+import { feedbackRouter } from './routers/feedback.js'
 import { router } from './trpc.js'
 
 export const appRouter = router({
@@ -17,6 +20,9 @@ export const appRouter = router({
   freezer: freezerRouter,
   staples: staplesRouter,
   settings: settingsRouter,
+  recipes: recipesRouter,
+  family: familyRouter,
+  feedback: feedbackRouter,
 })
 
 export type AppRouter = typeof appRouter

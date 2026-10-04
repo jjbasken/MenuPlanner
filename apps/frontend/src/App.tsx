@@ -10,6 +10,12 @@ import { LoginPage } from './routes/LoginPage.js'
 import { SetupPage } from './routes/SetupPage.js'
 import { SettingsPage } from './routes/SettingsPage.js'
 import { TonightPage } from './routes/TonightPage.js'
+import { KioskPage } from './routes/KioskPage.js'
+import { PlanPage } from './routes/PlanPage.js'
+import { RecipesPage } from './routes/RecipesPage.js'
+import { RecipePage } from './routes/RecipePage.js'
+import { RecipeEditPage } from './routes/RecipeEditPage.js'
+import { FeedbackPage } from './routes/FeedbackPage.js'
 
 export function App() {
   const [trpcClient] = useState(() => createTrpcClient(() => session.getToken()))
@@ -23,6 +29,13 @@ export function App() {
               <Route path="/setup" element={<SetupPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<TonightPage />} />
+                <Route path="/kiosk" element={<KioskPage />} />
+                <Route path="/plan" element={<PlanPage />} />
+                <Route path="/plan/recipes" element={<RecipesPage />} />
+                <Route path="/plan/recipes/new" element={<RecipeEditPage />} />
+                <Route path="/plan/recipes/:id" element={<RecipePage />} />
+                <Route path="/plan/recipes/:id/edit" element={<RecipeEditPage />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
