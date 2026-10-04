@@ -56,10 +56,31 @@ apps/
     public/           manifest.json, sw.js, icons
     nginx.conf, security-headers.conf, Dockerfile
 packages/
-  shared/             Types shared by backend and frontend (@menu/shared)
+  shared/             @menu/shared — pure TypeScript used by backend, frontend and CLI
+    src/
+      ingredients.ts  Combine a week's ingredients; unit conversion; kitchen formatting
+      dates.ts        Local-calendar date helpers, Monday week starts, "push back" shifting
+      plan.ts         Cook-night numbering ("1 of 3"), thaw-tonight reminders
+      schemas.ts      zod schemas for recipes and weekly plans
+      types.ts, limits.ts
+    tests/
 docker-compose.yml
 .env.example
 ```
+
+### Shared planning logic
+
+`@menu/shared` has no I/O and is unit-tested on its own:
+
+- **Ingredient aggregation:**
+  - Ingredient names are matched ignoring case, spacing and simple plurals, so "Yellow onions" and "yellow onion" are the same item.
+  - Volumes (tsp/tbsp/cup/fl oz/pint/quart/gallon/ml/l) and masses (oz/lb/g/kg) are converted to a common base and summed. The total is shown in a readable unit: imperial if any input was imperial, otherwise metric.
+  - Units that can't be converted (cans, cloves, bunches…) are summed per unit and listed side by side, e.g. "8 oz + 2 cans".
+  - Amounts use kitchen fractions (1½, ⅓). An amount that doesn't fit a measuring cup, like ⅜ cup, is shown in spoons instead: 6 tbsp.
+  - Each combined item records which meals it came from.
+- **Dates:** plans use plain `YYYY-MM-DD` dates in the household's local calendar, and weeks run Monday to Sunday. "Push back" moves tonight's meal and every later one by N days.
+- **Plan helpers:** cook nights are numbered in date order. A freezer item linked to a meal produces a "Thaw tonight" reminder the evening before.
+- **Schemas:** the zod input schemas for recipes and weekly plans. The API and the agent CLI will both validate against these.
 
 The database schema already includes the tables for upcoming features: recipes, plans, the freezer, staples, shopping items and feedback. Only accounts are wired up so far.
 
