@@ -18,9 +18,8 @@ function prune(now: number) {
 export type RateLimit = { key: string; limit: number; windowMs: number }
 
 /**
- * True when every limit still has room. Counts nothing — call `recordHit` to
- * actually consume budget, so callers can charge only the attempts they want to
- * (failed logins) rather than every request.
+ * True when every limit still has room. Counts nothing — call `recordHit`
+ * synchronously before yielding to asynchronous work to reserve the attempt.
  */
 export function withinLimits(limits: RateLimit[]): boolean {
   const now = Date.now()

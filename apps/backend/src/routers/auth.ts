@@ -101,7 +101,13 @@ export const authRouter = router({
         tokenVersion: 0,
         createdAt: Date.now(),
       }
-      await ctx.db.insert(users).values(user)
+      // Hashing yields to other requests. Recheck and insert in one SQLite
+      // transaction so two concurrent setup requests cannot both become admins.
+      ctx.db.transaction(tx => {
+        const [{ value }] = tx.select({ value: count() }).from(users).all()
+        if (value > 0) throw new TRPCError({ code: 'FORBIDDEN', message: 'Setup is already complete' })
+        tx.insert(users).values(user).run()
+      })
       return { token: await signToken(user.id, 0), user: publicUser(user) }
     }),
 
@@ -115,15 +121,16 @@ export const authRouter = router({
       // verification, so an unmetered login is a CPU-exhaustion lever too.
       const limits = loginLimits(input.username, ctx.clientIp)
       if (!withinLimits(limits)) throw tooManyRequests()
+      // Reserve the attempt before Argon2 yields. Otherwise a parallel burst
+      // passes the check before any failed request records its hit.
+      recordHit(limits)
 
       const [user] = await ctx.db.select().from(users).where(eq(users.username, input.username))
       if (!user) {
         await Bun.password.verify(input.password, await getDummyHash())
-        recordHit(limits)
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Wrong username or password' })
       }
       if (!(await Bun.password.verify(input.password, user.passwordHash))) {
-        recordHit(limits)
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Wrong username or password' })
       }
       clearHits(limits)

@@ -179,7 +179,9 @@ Tokens are stored as SHA-256 hashes, can be revoked in Settings, and show when t
 - **Security:**
   - Passwords are hashed with Argon2id.
   - Failed logins and setup attempts are rate-limited, and a login for an unknown username takes as long as one for a real account.
+  - Login attempts are counted before password verification, so concurrent attempts cannot bypass the limit. First-run setup is atomic, allowing only one initial admin account.
   - Login tokens are revocable: logging out revokes that session, and admins can revoke all of a user's sessions.
+  - Recipe source links accept only HTTP and HTTPS URLs; previously saved non-web links are not rendered.
   - The server refuses to start with a weak or placeholder `JWT_SECRET`.
   - nginx serves a strict CSP (all fonts and scripts are first-party) and HSTS.
 

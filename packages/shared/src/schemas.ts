@@ -11,6 +11,14 @@ import {
 export const isoDateSchema = z.string().refine(isISODate, 'Expected a date as YYYY-MM-DD')
 export const idSchema = z.string().min(1).max(MAX_ID)
 
+export function isWebUrl(value: string): boolean {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol)
+  } catch {
+    return false
+  }
+}
+
 const optionalMinutes = z.number().int().min(0).max(24 * 60).nullable().optional()
 
 export const ingredientInputSchema = z.object({
@@ -27,7 +35,9 @@ export const recipeInputSchema = z.object({
   prepMin: optionalMinutes,
   cookMin: optionalMinutes,
   instructions: z.string().max(MAX_LONG_TEXT).optional().default(''),
-  sourceUrl: z.string().trim().url().max(MAX_URL).nullable().optional(),
+  sourceUrl: z.string().trim().url().max(MAX_URL)
+    .refine(isWebUrl, 'Use an HTTP or HTTPS URL')
+    .nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TAGS).optional().default([]),
   kidFriendly: z.boolean().optional().default(false),
   rating: z.number().int().min(1).max(5).nullable().optional(),
