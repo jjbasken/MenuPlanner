@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { formatMinutes, formatQuantity, scaleQty } from '@menu/shared'
+import { formatMinutes, formatQuantity, isWebUrl, scaleQty } from '@menu/shared'
 import { AppShell } from '../components/AppShell.js'
 import { PlanTabs } from '../components/PlanTabs.js'
 import { trpc } from '../lib/trpc.js'
@@ -55,7 +55,7 @@ export function RecipePage() {
         <section className="card section">
           <h2 className="subsection-title">Instructions</h2>
           {r.instructions ? <div className="prewrap">{r.instructions}</div> : <p className="muted">No instructions yet.</p>}
-          {r.sourceUrl && <p><a href={r.sourceUrl} target="_blank" rel="noreferrer noopener">Original recipe ↗</a></p>}
+          {r.sourceUrl && isWebUrl(r.sourceUrl) && <p><a href={r.sourceUrl} target="_blank" rel="noreferrer noopener">Original recipe ↗</a></p>}
           <div className="btn-row">
             <Link className="btn" to={`/plan/recipes/${r.id}/edit`}>Edit</Link>
             {confirm

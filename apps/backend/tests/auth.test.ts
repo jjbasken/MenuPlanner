@@ -35,6 +35,20 @@ describe('setup', () => {
       .rejects.toThrow('already complete')
   })
 
+  test('only one concurrent setup request creates an admin', async () => {
+    const { db, caller } = anon()
+    const input = (username: string) => ({
+      bootstrapToken: BOOTSTRAP_TOKEN, username, displayName: username, password: 'password1',
+    })
+    const results = await Promise.allSettled([
+      caller.auth.setup(input('first')),
+      caller.auth.setup(input('second')),
+    ])
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter(r => r.status === 'rejected')).toHaveLength(1)
+    expect(db.$client.query('SELECT id FROM users').all()).toHaveLength(1)
+  })
+
   test('rate-limits failed attempts per IP', async () => {
     const { caller } = anon(makeTestDb(), '203.0.113.5')
     for (let i = 0; i < 10; i++) {
@@ -68,6 +82,16 @@ describe('login', () => {
       await expect(caller.auth.login({ username: 'mom', password: 'nope' })).rejects.toThrow()
     }
     await expect(caller.auth.login({ username: 'mom', password: 'pancakes!' })).rejects.toThrow('Too many')
+  })
+
+  test('reserves attempts before concurrent password checks', async () => {
+    const { db, caller } = anon()
+    await makeUser(db, { username: 'mom', password: 'pancakes!' })
+    const attempts = await Promise.allSettled(Array.from({ length: 20 }, () =>
+      caller.auth.login({ username: 'mom', password: 'wrong-password' })
+    ))
+    expect(attempts.filter(r => r.status === 'rejected' && r.reason.message.includes('Too many'))).toHaveLength(10)
+    expect(attempts.filter(r => r.status === 'rejected' && r.reason.message.includes('Wrong username'))).toHaveLength(10)
   })
 })
 
